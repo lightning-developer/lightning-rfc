@@ -627,8 +627,8 @@ irrevocable and the incoming HTLC should be fulfilled as soon as possible to
 reduce latency.
 
 An HTLC with an unreasonably long expiry is a denial-of-service vector and
-therefore is not allowed. Note that the exact value of "unreasonable" is currently unclear
-and may depend on network topology.
+therefore is not allowed. Unreasonable is defined as greater or equal to 2016
+blocks.
 
 ### `cltv_expiry_delta` Selection
 
@@ -766,7 +766,7 @@ remote commitment transaction at the current `feerate_per_kw` (see "Updating
 Fees") while maintaining its channel reserve.
   - MUST offer `amount_msat` greater than 0.
   - MUST NOT offer `amount_msat` below the receiving node's `htlc_minimum_msat`
-  - MUST set `cltv_expiry` less than 500000000.
+  - MUST set `cltv_expiry` less than 2016.
   - for channels with `chain_hash` identifying the Bitcoin blockchain:
     - MUST set the four most significant bytes of `amount_msat` to 0.
   - if result would be offering more than the remote's
@@ -787,7 +787,7 @@ A receiving node:
   - if a sending node adds more than its `max_accepted_htlcs` HTLCs to
     its local commitment transaction, OR adds more than its `max_htlc_value_in_flight_msat` worth of offered HTLCs to its local commitment transaction:
     - SHOULD fail the channel.
-  - if sending node sets `cltv_expiry` to greater or equal to 500000000:
+  - if sending node sets `cltv_expiry` to greater or equal to 2016:
     - SHOULD fail the channel.
   - for channels with `chain_hash` identifying the Bitcoin blockchain, if the four most significant bytes of `amount_msat` are not 0:
     - MUST fail the channel.
