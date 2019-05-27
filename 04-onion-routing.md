@@ -638,23 +638,73 @@ consisting of the following fields:
 
 1. data:
    * [`32`:`hmac`]
-   * [`2`:`failure_len`]
+   * [`2`:`failure_len+16`]
    * [`failure_len`:`failuremsg`]
+   * [`8`:`add_timestamp`]
+   * [`8`:`fail_timestamp`]
    * [`2`:`pad_len`]
    * [`pad_len`:`pad`]
 
+TODO: The timestamps basically become part of every failure message, maybe add
+them in that section.
+
+TODO: Make additional fields tlv based?
+
 Where `hmac` is an HMAC authenticating the remainder of the packet, with a key
 generated using the above process, with key type `um`, `failuremsg` as defined
-below, and `pad` as the extra bytes used to conceal length.
+below and `pad` as the extra bytes used to conceal length. `pad_len` is chosen
+so that the return packet is equal in size to the `updateadd` packet, making
+them indistinguisable. This size is 1408 bytes.
+
+TODO: Are they really indistinguisable? Not every field in those messages is
+obfuscated. What is the actual leak that we want to address here?
+
+The fields `add_timestamp` and `fail_timestamp` contain the unix epoch
+in nano seconds when the htlc was received and the failure message returned.
+This allows the sender of the payment to determine the total latency for the
+forward and for the backwards path.
+
+Every hop on the return path repeats the obfuscation step after adding their own
+timestamps and hmac to the packet.
+
+Upon receiving an `incoming` return packet, an intermediate hop constructs a new
+packet according to the following format:
+
+1. data:
+   * [`292`:`incoming[:292]`]
+   * [`32`:`hmac`]
+   * [`8`:`add_timestamp`]
+   * [`8`:`fail_timestamp`]
+   * [`1068`:`incoming[292:1360`]
+
+TODO: Make additional fields tlv based and use variable length intermediate hop
+data?
+
+The packet starts with the first part of the `incoming` data. This contains the
+obfuscated error message. This data should always stay at the start of the
+packet, so that nodes can strip off the remainder if passing the message back to
+a node that doesn't support the extended data. Because a stream cipher is used,
+this data will remain decryptable by the sender.
+
+Then follows an `hmac` that covers everything in this packet except for the
+`hmac` itself. To calculate the `hmac`, the packet data before `hmac` needs to
+be concatenated with the data after `hmac`. When the failure message is tampered
+with, the chain of hmacs allows the sender to identify the source of the
+tampering.
+
+The fields `add_timestamp` and `fail_timestamp` again contain the unix epoch in
+nano seconds when the htlc was received and the failure message returned. In
+case of unexpected delays, the sender can use the timestamps to pinpoint the
+pair of nodes that is responsible for the delay.
+
+Finally the packet contains the remainder of the `incoming` data. The last part
+of the original `incoming` data is discarded. Basically the intermediate hop
+data is shifted right at every hop, keeping the packet size unchanged. This
+prevents hops from discovering their position in the path.
 
 The erring node then generates a new key, using the key type `ammag`.
 This key is then used to generate a pseudo-random stream, which is in turn
 applied to the packet using `XOR`.
-
-The obfuscation step is repeated by every hop along the return path.
-Upon receiving a return packet, each hop generates its `ammag`, generates the
-pseudo-random byte stream, and applies the result to the return packet before
-return-forwarding it.
 
 The origin node is able to detect that it's the intended final recipient of the
 return message, because of course, it was the originator of the corresponding
@@ -663,9 +713,9 @@ When an origin node receives an error message matching a transfer it initiated
 (i.e. it cannot return-forward the error any further) it generates the `ammag`
 and `um` keys for each hop in the route.
 It then iteratively decrypts the error message, using each hop's `ammag`
-key, and computes the HMAC, using each hop's `um` key.
-The origin node can detect the sender of the error message by matching the
-`hmac` field with the computed HMAC.
+key, computes and verifies the HMACs, using each hop's `um` key and decodes the timestamps.
+The sender knows the number of hops and therefore knows how many decryption
+rounds are needed to get to the final error message.
 
 The association between the forward and return packets is handled outside of
 this onion routing protocol, e.g. via association with an HTLC in a payment
@@ -674,9 +724,15 @@ channel.
 ### Requirements
 
 The _erring node_:
-  - SHOULD set `pad` such that the `failure_len` plus `pad_len` is equal to 256.
-    - Note: this value is 118 bytes longer than the longest currently-defined
-    message.
+  - SHOULD set `pad` such that the total packet size is equal to 1408.
+    - Note: the failure message before padding shouldn't exceed 292 bytes, as
+      this is the maximum that can be passed back by older nodes.
+  - SHOULD set `pad` such that the total packet size is equal to 292 when its
+    predecessor is an older node.
+
+The _intermediate node_:
+  - SHOULD return only the first 292 bytes of the failure reason to older nodes
+    not supporting the extended format.
 
 The _origin node_:
   - once the return message has been decrypted:

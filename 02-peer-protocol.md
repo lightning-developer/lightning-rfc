@@ -858,6 +858,16 @@ To supply the preimage:
    * [`32`:`channel_id`]
    * [`8`:`id`]
    * [`32`:`payment_preimage`]
+   * [`2`:`len`]
+   * [`len`:`settle_info`]
+
+The `settle_info` field is an opaque encrypted blob for the benefit of the
+original HTLC initiator. All hops add their forward and backward timestamps to
+this blob, similar to how failures are encrypted on the return path.
+`settle_info` is constant length to prevent hops from discovering their position
+in the path.
+
+TODO: Add more details about the exact way this should happen.
 
 For a timed out or route-failed HTLC:
 
