@@ -263,6 +263,9 @@ It is formatted according to the Type-Length-Value format defined in [BOLT #1](0
     2. data:
         * [`32*byte`:`payment_secret`]
         * [`tu64`:`total_msat`]
+    1. type: 14 (`payment_metadata`)
+    2. data:
+        * [`...*byte`:`payment_metadata`]
 
 ### Requirements
 
