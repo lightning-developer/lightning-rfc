@@ -951,9 +951,10 @@ handling by the processing node.
    * [`u32`:`height`]
 
 The `payment_hash` is unknown to the final node, the `payment_secret` doesn't
-match the `payment_hash`, the amount for that `payment_hash` is incorrect or
-the CLTV expiry of the htlc is too close to the current block height for safe
-handling.
+match the `payment_hash`, the amount for that `payment_hash` is incorrect, the
+`payment_metadata` field was provided in the invoice but not set in the 
+`tlv_payload` or the CLTV expiry of the htlc is too close to the current block 
+height for safe handling. 
 
 The `htlc_msat` parameter is superfluous, but left in for backwards
 compatibility. The value of `htlc_msat` always matches the amount specified in
