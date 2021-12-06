@@ -216,7 +216,7 @@ minimum CLTV expiry for its incoming HTLC. Destination nodes may use this
 to require a higher, more conservative value than the default one, depending
 on their fee estimation policy and their sensitivity to time locks. Note
 that remote nodes in the route specify their required `cltv_expiry_delta`
-in the `channel_update` message, which they can update at all times.
+in the `channel_update`, which they can update at all times.
 
 The `f` field allows on-chain fallback. This may not make sense for
 tiny or time-sensitive payments, however. It's possible that new
